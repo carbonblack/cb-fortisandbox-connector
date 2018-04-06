@@ -1,2 +1,2 @@
-# cb-fortisandbox-connector
-A binary analysis connector using fortisandbox. 
+# Carbon Black - FortiSandbox Connector
+Submits binaries for analysis to FotiSandbox.
