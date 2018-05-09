@@ -33,14 +33,9 @@ class FortiSandboxAnalysisClient(object):
 		log.info(response)
 		log.info(response.json())
 		responsebody = response.json()
-		result = responsebody.get(u'result',None)
-		status = result.get(u'status',None) if result else None
-		if result and status: 
-		    self._sid = responsebody.get(u'session',None)
-		    message = status.get(u"message")
-		    code = status.get(u'code')
-		    
-		    if code == 0:
+		log.info("responsebody = %s",response.json())
+		self._sid = responsebody.get(u'session',None)
+
 	return self._sid
 
     def submit_file(self, resource_hash=None, stream=None):
@@ -57,35 +52,26 @@ class FortiSandboxAnalysisClient(object):
         ],
 	'''
         file_name = None
+	log.info("DIR STREAM = " + str(dir(stream)))
         if hasattr(stream, "name"):
             log.info("submitting file: fs.name: %s" % stream.name)
             file_name = os.path.basename(stream.name)
-        params['filename'] = b64encode(file_name)
+        params['filename'] = b64encode(file_name) if file_name else b64encode(resource_hash)
         params['file'] = b64encode(stream.read())
         response = api_fortisandbox.handle_request(
-            host,
+            host=self.host,
             session=self.session,
             sid=self.sid,
             params=params,
             request_type='file_upload')
-        log.debug("sub_file: response = %s" % response)
+	log.info(str(response.json()))
+        log.info("sub_file: response = %s" % response)
         return response
 
     def get_report(self, resource_hash=None, batch=None):
         log.info("get_report: resource_hash = %s" % resource_hash)
-        params = {"ctype": "md5","url":"/scan/results/file"}
-        '''
-	params": [
-            {
-                "sha256": "90877c1f6e7c97fb11249dc28dd16a3a3ddfac935d4f38c69307a71d96c8ef45",
-		"ctype": "sha256"
-            }
-        ],
-	'''
-        if resource_hash:
-            params["checksum"] = resource_hash
-        else:
-            raise Exception("No resources provided")
+        print("get_report: resource_hash = %s" % resource_hash)
+        params = {"ctype": "md5","url":"/scan/result/file","checksum":resource_hash.lower()}
         response = api_fortisandbox.handle_request(
             host=self.host,
             session=self.session,

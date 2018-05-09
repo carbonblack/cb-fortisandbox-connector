@@ -1,4 +1,5 @@
 from cbint.utils.detonation import DetonationDaemon
+import traceback
 from cbint.utils.detonation.binary_analysis import (BinaryAnalysisProvider,
                                                     AnalysisTemporaryError, AnalysisResult, AnalysisInProgress, AnalysisPermanentError)
 from cbapi.connection import CbAPISessionAdapter
@@ -25,27 +26,30 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             session=session,
             log_level=log_level)
 
-    def make_result(self, scan_id, result=None, md5=None):
+    def make_result(self, result=None, md5=None):
+        log.info("making result for md5"+md5 if md5 else "None")
         try:
             result = self.fortisandbox_analysis.get_report(
-                scan_id) if not result else result
+                resource_hash=md5).json() if not result else result
         except Exception as e:
             raise AnalysisTemporaryError(
                 message="API error: %s" %
                 str(e), retry_in=120)
         else:
-            data = result.get('data', {})
-            score = int(data.get('score', 0))
+            result = result.get('result', {})
+	    data = result.get('data',{})
+            score = int(data.get('score'))
             if score == 0:
                 return AnalysisResult(message="Benign", extended_message="",
-                                      link=result['rating'],
+                                      link=str(data['rating']),
                                       score=score)
             else:
                 # 'rating' [] 'malware_name' [] vid []
-                ratings = result.get("ratings", [])
-                vids = result.get("vids", [])
+		score = data.get('score')
+                ratings = data.get("rating", [])
+                vids = data.get("vid", [])
                 malware_names = result.get("malware_name", [])
-
+		vids = [-1 for malware_name in malware_names] 
                 log.info("detected by = %s " % detected_by)
                 report_string = "Fortisandbox Report:\n"
                 link_start = "http://www.fortiguard.com/encyclopedia/virus/#id="
@@ -60,53 +64,75 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                                       score=score)
 
     def check_result_for(self, md5sum):
+        log.info("trying to check report for " + str(md5sum))
         try:
             response = self.fortisandbox_analysis.get_report(
                 resource_hash=md5sum)
-        except BaseException as be:
-            log.debug(be)
+        except Exception as e:
+            log.info("exception checking result " + str(e))
             return None
 
         result = response.json().get("result", {})
-	status = result.get("status")
-        response_code = result.get("message", None)
-        if (status is "OK"):
-            return self.make_result(md5=md5sum, result=response)
+        log.info("result = " + str(result))
+        status = result.get("status")
+        log.info("status = " + str(status))
+        response_msg = status.get("message", "None")
+        log.info("response_msg = " + response_msg)
+        if (response_msg is "OK"):
+            log.info("check result got OK returning result")
+            return self.make_result(md5=md5sum, result=response.json())
+        elif (response_msg is 'DATA_NOT_EXIST'):
+            log.info("Got Data_not_exist in check result for")
+            return None
         else:
             return AnalysisInProgress()
 
     def analyze_binary(self, md5sum, binary_file_stream):
+        log.info("trying to analyze binary: " + str(md5sum))
         try:
             response = self.fortisandbox_analysis.submit_file(
                 resource_hash=md5sum, stream=binary_file_stream)
         except BaseException as be:
+            log.info("EXCEPTION WHEN trying to analyze binary: " + str(md5sum))
+            log.info(traceback.format_exc())
             raise AnalysisTemporaryError(message=str(be), retry_in=15 * 60)
 
-        result = response.get("result", {})
+        log.info("AB: response = " + str(response.json()))
+        result = response.json().get("result", {})
         response_code = result.get("status", {}).get("message", None)
         if response_code == "OK":
             log.info(
                 "Submitted %s to fortisandbox for scanning succesfully" %
-                resource_hash)
+                md5sum)
         else:
             raise AnalysisPermanentError(
                 message="FortiSandbox analysis failed -> %s" %
                 response_code, retry_in=120)
 
-        response = self.fortisandbox_analysis.get_report(
-            resource_hash=sha256sum)
-        result = response.json().get("result", {})
-        response_code = result.get("status", {}).get("message", None)
-        if response_code == "OK":
-            log.info(
-                "Got analysis report from Fortisandbox for %s" %
-                resource_hash)
-        else:
-            raise AnalysisTemporaryError(
-                message="FortiSandbox analysis failed -> %s" %
-                response_code, retry_in=120)
+        try:
 
-        return self.make_result(scan_id=scan_id, result=response)
+            response = self.fortisandbox_analysis.get_report(
+                resource_hash=md5sum)
+            log.info(str(response.json()))
+            result = response.json().get("result", {})
+            response_code = result.get("status", {}).get("message", None)
+            if response_code == "OK":
+                log.info(
+                    "Got analysis report from Fortisandbox for %s" %
+                    md5sum)
+            else:
+                raise AnalysisTemporaryError(
+                    message="FortiSandbox analysis failed -> %s" %
+                    response_code, retry_in=120)
+
+            return self.make_result(md5=md5sum, result=response.json())
+
+        except AnalysisTemporaryError as ate:
+            raise ate
+        except:
+            log.info(traceback.format_exc())
+            raise AnalysisPermanentError(
+                message="FortiSandbox Anlaysis failed -> %s" % response_code)
 
 
 class FortiSandboxConnector(DetonationDaemon):
@@ -167,8 +193,9 @@ class FortiSandboxConnector(DetonationDaemon):
 
 
 if __name__ == '__main__':
-    import os
 
+    import os
+    import sys
     my_path = os.path.dirname(os.path.abspath(__file__))
     temp_directory = "/tmp/fortisandbox"
 
@@ -179,4 +206,10 @@ if __name__ == '__main__':
     daemon = FortiSandboxConnector(name='fortisandboxtesting', configfile=config_path, work_directory=temp_directory,
                                    logfile=os.path.join(temp_directory, 'test.log'), debug=True)
 
-    daemon.start()
+    if len(sys.argv) > 1:
+        daemon.validate_config()
+	print (sys.argv)
+        print(daemon.get_provider().fortisandbox_analysis.get_report(resource_hash=
+            sys.argv[1]).json())
+    else:
+        daemon.start()
