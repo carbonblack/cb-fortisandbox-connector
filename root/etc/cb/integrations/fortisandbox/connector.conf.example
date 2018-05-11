@@ -28,38 +28,20 @@ feed_host=127.0.0.1
 ; Additional query options to filter only binaries of interest to the fortisandbox connector
 binary_filter_query=is_executable_image:true -(digsig_publisher:"Microsoft Corporation" and digsig_result:"Signed")
 
-; Concurrency settings
-;
-; The following two parameters control how many concurrent queries will be
-; performed against the fortisandbox server. The "quick_scan_threads" setting
-; specifies how many threads will be querying the fortisandbox appliance via
-; file hash at once. The "deep_scan_threads" setting specifies how many
-; full file scans can be actively "in flight" at a given time. The default
-; is that three files can be analyzed in parallel at any given time.
-;
-; ***WARNING***
-;
-; By setting fortisandbox_deep_scan_threads to GREATER THAN zero and submit_full_binaries to 1, you will be submitting
-; FULL binaries to FortiSandbox for analysis.  This is different from fortisandbox_quick_scan_threads which ONLY submit the
-; HASH to Virus Total.
-;
-
-;fortisandbox_quick_scan_threads=2
-;fortisandbox_deep_scan_threads=0
-
-;
-; fortisandbox API token
-; This key is given to you from fortisandbox
-; it can be found either by connecting your fortisandbox rep or
-; the fortisandbox website.
-;
-fortisandbox_api_token=PASSWORD
-
 ;
 ; fortisandbox URL
 ; url for fortisandbox api
-fortisandbox_url=https://www.fortisandbox.com/vtapi/v2/file/
+fortisandbox_url=https://10.210.39.16/jsonrpc
 
+;
+; username to use for Foritsandbox authentication
+;
+fortisandbox_username=admin
+
+;
+; password to use for Fortisandbox authentication
+;
+fortisandbox_password=
 
 ;
 ; legacy_feed_directory
