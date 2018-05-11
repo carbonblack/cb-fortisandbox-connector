@@ -37,30 +37,31 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                 str(e), retry_in=120)
         else:
             result = result.get('result', {})
-	    data = result.get('data',{})
+            data = result.get('data', {})
             score = int(data.get('score'))
             if score == 0:
                 return AnalysisResult(message="Benign", extended_message="",
                                       link=str(data['rating']),
                                       score=score)
             else:
-                # 'rating' [] 'malware_name' [] vid []
-		score = data.get('score')
+                score = data.get('score')
                 ratings = data.get("rating", [])
                 vids = data.get("vid", [])
-                malware_names = result.get("malware_name", [])
-		vids = [-1 for malware_name in malware_names] 
-                log.info("detected by = %s " % detected_by)
-                report_string = "Fortisandbox Report:\n"
+                malware_names = data.get("malware_name", [])
+                report_string = "Fortisandbox Report for {0}:\n".format(md5)
                 link_start = "http://www.fortiguard.com/encyclopedia/virus/#id="
-                for i in xrange(len(ratings)):
-                    report_string += "{0} : {1} : {2} : {3}".format(
-                        vids[i], ratings[i], malware_names[i], link_start + vids[i])
-
+                link = link_start+str(vids[0])
+                report_string += "Score: {0}\n".format(score)
+                report_string += "Malware Names: {0}\n".format(
+                    ",".join(malware_names))
+                report_string += "Malware Ratings: {0}\n".format(
+                    ",".join(ratings))
+                report_string += "Virus Ids: {0}\n".format(
+                    ",".join([str(vid) for vid in vids]))
                 malware_result = "[{0}] FortiSandbox report for {1}".format(
                     score, md5)
                 return AnalysisResult(message=malware_result, extended_message=report_string,
-                                      link=link_start + vids[0],
+                                      link=link,
                                       score=score)
 
     def check_result_for(self, md5sum):
@@ -73,16 +74,13 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             return None
 
         result = response.json().get("result", {})
-        log.info("result = " + str(result))
         status = result.get("status")
-        log.info("status = " + str(status))
         response_msg = status.get("message", "None")
-        log.info("response_msg = " + response_msg)
-        if (response_msg is "OK"):
-            log.info("check result got OK returning result")
+        code = status.get('code', -1)
+        if (response_msg == "OK" or response_msg == u"OK" or code == 0):
+            log.info("OK -> making result for {0}".format(md5sum))
             return self.make_result(md5=md5sum, result=response.json())
-        elif (response_msg is 'DATA_NOT_EXIST'):
-            log.info("Got Data_not_exist in check result for")
+        elif (response_msg == 'DATA_NOT_EXIST'):
             return None
         else:
             return AnalysisInProgress()
@@ -97,7 +95,6 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             log.info(traceback.format_exc())
             raise AnalysisTemporaryError(message=str(be), retry_in=15 * 60)
 
-        log.info("AB: response = " + str(response.json()))
         result = response.json().get("result", {})
         response_code = result.get("status", {}).get("message", None)
         if response_code == "OK":
@@ -120,13 +117,11 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                 log.info(
                     "Got analysis report from Fortisandbox for %s" %
                     md5sum)
+                return self.make_result(md5=md5sum, result=response.json())
             else:
                 raise AnalysisTemporaryError(
                     message="FortiSandbox analysis failed -> %s" %
                     response_code, retry_in=120)
-
-            return self.make_result(md5=md5sum, result=response.json())
-
         except AnalysisTemporaryError as ate:
             raise ate
         except:
@@ -208,8 +203,10 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         daemon.validate_config()
-	print (sys.argv)
-        print(daemon.get_provider().fortisandbox_analysis.get_report(resource_hash=
-            sys.argv[1]).json())
+        print (sys.argv)
+        provider = daemon.get_provider()
+        result = provider.fortisandbox_analysis.get_report(
+            resource_hash=sys.argv[1]).json()
+        print (provider.make_result(result=result, md5=sys.argv[1]))
     else:
         daemon.start()
