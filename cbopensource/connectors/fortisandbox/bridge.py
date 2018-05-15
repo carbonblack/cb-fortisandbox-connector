@@ -28,7 +28,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             log_level=log_level)
 
     def make_result(self, result=None, md5=None):
-        log.info("making result for md5"+md5 if md5 else "None")
+        log.info("making result for md5 {0}".format(md5 if md5 else "None"))
         try:
             result = self.fortisandbox_analysis.get_report(
                 resource_hash=md5).json() if not result else result
@@ -48,8 +48,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                                           score=score)
                 else:
                     raise AnalysisTemporaryError(
-                        message="Configured to not trust untrusted scans, retrying in 120 seconds %s" %
-                        str(e), retry_in=120)
+                        message="Configured to not trust untrusted scans, retrying in 120 seconds", retry_in=120)
 
             else:
                 score = data.get('score')
@@ -57,8 +56,10 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                 vids = data.get("vid", ['N/A'])
                 malware_names = data.get("malware_name", [])
                 report_string = "Fortisandbox Report for {0}:\n".format(md5)
-                link_start = "http://www.fortiguard.com/encyclopedia/virus/#id="
-                link = link_start+str(vids[0]) if len(vids) > 0 else link_start
+                if len(vids) > 0:
+                    link = "http://www.fortiguard.com/encyclopedia/virus/#id={0}".format(str(vids[0]))
+                else:
+                    link = ""
                 report_string += "Score: {0}\n".format(score)
                 report_string += "Malware Names: {0}\n".format(
                     ",".join(malware_names))
@@ -73,7 +74,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                                       score=score)
 
     def check_result_for(self, md5sum):
-        log.info("trying to check report for " + str(md5sum))
+        log.debug("trying to check report for " + str(md5sum))
         try:
             response = self.fortisandbox_analysis.get_report(
                 resource_hash=md5sum)
@@ -85,36 +86,34 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         status = result.get("status")
         response_msg = status.get("message", "None")
         code = status.get('code', -1)
-        if (response_msg == "OK" or response_msg == u"OK" or code == 0):
+        if response_msg == "OK" or response_msg == u"OK" or code == 0:
             log.info("OK -> making result for {0}".format(md5sum))
             return self.make_result(md5=md5sum, result=response.json())
-        elif (response_msg == 'DATA_NOT_EXIST'):
+        elif response_msg == 'DATA_NOT_EXIST':
             return None
-        return None
+        else:
+            return None
 
     def analyze_binary(self, md5sum, binary_file_stream):
-        log.info("Fortinet analyze binary: " + str(md5sum))
+        log.info("Submitting {0} to FortiSandbox for analysis".format(str(md5sum)))
         try:
             response = self.fortisandbox_analysis.submit_file(
                 resource_hash=md5sum, stream=binary_file_stream)
         except BaseException as be:
-            log.info("EXCEPTION WHEN trying to analyze binary: " + str(md5sum))
-            log.debug(traceback.format_exc())
+            log.error("EXCEPTION WHEN trying to submit binary: " + str(md5sum))
+            log.error(traceback.format_exc())
             raise AnalysisTemporaryError(message=str(be), retry_in=15 * 60)
 
         result = response.json().get("result", {})
         response_code = result.get("status", {}).get("message", None)
         if response_code == "OK":
-            log.info(
-                "Submitted %s to fortisandbox for scanning succesfully" %
-                md5sum)
+            log.info("Sucessfully submitted {0} to FortiSandbox for scanning".format(md5sum))
         else:
             raise AnalysisPermanentError(
                 message="FortiSandbox analysis failed -> %s" %
                 response_code, retry_in=120)
 
         try:
-
             response = self.fortisandbox_analysis.get_report(
                 resource_hash=md5sum)
             log.debug("Fortinet report: " + str(response.json()))
@@ -135,8 +134,8 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         except AnalysisTemporaryError as ate:
             raise ate
         except:
-            log.info("Fortisandbox Analysis failed , permanent!")
-            log.debug(traceback.format_exc())
+            log.error("Fortisandbox Analysis failed , permanent!")
+            log.error(traceback.format_exc())
             raise AnalysisPermanentError(
                 message="FortiSandbox Anlaysis failed -> %s" % response_code)
 
