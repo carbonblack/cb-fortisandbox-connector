@@ -93,7 +93,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         status = result.get("status")
         response_msg = status.get("message", "None")
         code = status.get('code', -1)
-        if code == 0 or response_msg == "OK":
+        if response_msg == "OK":
             log.info("OK -> making result for {0}".format(md5sum))
             return self.make_result(md5=md5sum, result=response.json())
         elif response_msg == 'DATA_NOT_EXIST':
