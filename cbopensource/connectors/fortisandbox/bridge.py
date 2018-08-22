@@ -40,6 +40,14 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             result = result.get('result', {})
             data = result.get('data', {})
             score = int(data.get('score'))
+            """RISK_UNKNOWN = 0
+            RISK_CLEAN = 1
+            RISK_MALICIOUS = 2
+            RISK_LOW = 4
+            RISK_MEDIUM = 8
+            RISK_HIGH = 16"""
+            RISK_MATRIX = {0:0,1:0,2:10,4:25,8:75,16:100}
+            score = RISK_MATRIX[score] if score in RISK_MATRIX else score
             untrusted = int(data.get('untrusted', "0"))
             if score == 0:
                 if (self.fortisandbox_trust_untrusted and untrusted == 1) or untrusted == 0:
@@ -51,7 +59,6 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                         message="Configured to not trust untrusted scans, retrying in 120 seconds", retry_in=120)
 
             else:
-                score = data.get('score')
                 ratings = data.get("rating", [])
                 vids = data.get("vid", ['N/A'])
                 malware_names = data.get("malware_name", [])
@@ -86,7 +93,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         status = result.get("status")
         response_msg = status.get("message", "None")
         code = status.get('code', -1)
-        if response_msg == "OK" or response_msg == u"OK" or code == 0:
+        if code == 0 or response_msg == "OK":
             log.info("OK -> making result for {0}".format(md5sum))
             return self.make_result(md5=md5sum, result=response.json())
         elif response_msg == 'DATA_NOT_EXIST':

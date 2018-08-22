@@ -65,5 +65,5 @@ class FortiSandboxAnalysisClient(object):
             sid=self.sid,
             params=params,
             request_type="get_file_verdict")
-        log.debug("get_report: response = %s" % str(response))
+        log.debug("get_report: response = %s" % str(response.json()))
         return response
