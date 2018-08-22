@@ -59,7 +59,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                 if len(vids) > 0:
                     link = "http://www.fortiguard.com/encyclopedia/virus/#id={0}".format(str(vids[0]))
                 else:
-                    link = ""
+                    link = "http://www.fortiguard.com/encyclopedia/virus/#id={0}".format(md5)
                 report_string += "Score: {0}\n".format(score)
                 report_string += "Malware Names: {0}\n".format(
                     ",".join(malware_names))
