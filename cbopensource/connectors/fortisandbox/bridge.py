@@ -175,7 +175,7 @@ class FortiSandboxConnector(DetonationDaemon):
         return cbint.utils.feed.generate_feed(self.name, summary="FortiSandbox augments your security architecture by validating threats in a seperate, secure environment",
                                               tech_data="Fortisandbox appliance/virtual appliance and credentials are required to access this threat intelligence feed.  There are no requirements to share any data with Carbon Black to use this feed. However, binaries may be shared with fortisandbox.",
                                               provider_url="http://www.fortisandbox.com/",
-                                              icon_path=None,
+                                              icon_path="/usr/share/cb/integrations/fortisandbox/fortisandbox-logo.png",
                                               display_name="FortiSandbox", category="Connectors")
 
     def validate_config(self):
@@ -220,6 +220,7 @@ if __name__ == '__main__':
         provider = daemon.get_provider()
         result = provider.fortisandbox_analysis.get_report(
             resource_hash=sys.argv[1]).json()
+        print (result)
         print (provider.make_result(result=result, md5=sys.argv[1]))
     else:
         daemon.start()

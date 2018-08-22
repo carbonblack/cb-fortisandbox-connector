@@ -44,6 +44,7 @@ class FortiSandboxAnalysisClient(object):
             file_name = os.path.basename(stream.name)
         params['filename'] = b64encode(
             file_name) if file_name else b64encode(resource_hash)
+        stream.seek(0)
         params['file'] = b64encode(stream.read())
         response = api_fortisandbox.handle_request(
             host=self.host,
@@ -56,7 +57,7 @@ class FortiSandboxAnalysisClient(object):
 
     def get_report(self, resource_hash=None, batch=None):
         log.debug("get_report: resource_hash = %s" % resource_hash)
-        params = {"ctype": "md5", "url": "/scan/result/file",
+        params = {"ctype": "MD5", "url": "/scan/result/file",
                   "checksum": resource_hash.lower()}
         response = api_fortisandbox.handle_request(
             host=self.host,
