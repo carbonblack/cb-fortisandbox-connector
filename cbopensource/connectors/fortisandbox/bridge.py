@@ -108,6 +108,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                 resource_hash=md5sum, stream=binary_file_stream)
         except BaseException as be:
             log.error("EXCEPTION WHEN trying to submit binary: " + str(md5sum))
+            log.error(str(be))
             log.error(traceback.format_exc())
             raise AnalysisTemporaryError(message=str(be), retry_in=15 * 60)
 
