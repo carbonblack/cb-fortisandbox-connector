@@ -94,8 +94,16 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         response_msg = status.get("message", "None")
         code = status.get('code', -1)
         if response_msg == "OK":
-            log.info("OK -> making result for {0}".format(md5sum))
-            return self.make_result(md5=md5sum, result=response.json())
+            data = result.get('data', {})
+            score = int(data.get('score'))
+            log.info("SCORE IS {0}".format(score))
+            #untrusted = int(data.get('untrusted', "0"))
+            if score != 0:
+                log.info("OK -> making result for {0}".format(md5sum))
+                return self.make_result(md5=md5sum, result=response.json())
+            else:
+                log.info("Score was RISK_UNKOWN")
+                return None
         elif response_msg == 'DATA_NOT_EXIST':
             return None
         else:
@@ -221,14 +229,21 @@ if __name__ == '__main__':
     config_path = os.path.join(my_path, "testing.conf")
     daemon = FortiSandboxConnector(name='fortisandboxtesting', configfile=config_path, work_directory=temp_directory,
                                    logfile=os.path.join(temp_directory, 'test.log'), debug=True)
+#
 
     if len(sys.argv) > 1:
         daemon.validate_config()
         print (sys.argv)
         provider = daemon.get_provider()
-        result = provider.fortisandbox_analysis.get_report(
-            resource_hash=sys.argv[1]).json()
-        print (result)
-        print (provider.make_result(result=result, md5=sys.argv[1]))
+        if len(sys.argv) <= 3:
+            print("Getting report for {0}".format(sys.argv[1]))
+            result = provider.fortisandbox_analysis.get_report(
+                resource_hash=sys.argv[1]).json() if len(sys.argv) <= 2 else provider.fortisandbox_analysis.get_report(resource_hash=sys.argv[1],hashtype=sys.argv[2]).json()
+            print (result)
+            print (provider.make_result(result=result, md5=sys.argv[1]))
+        else:
+            print("Submitting file {0} for scanning".format(sys.argv[2]))
+            result = provider.fortisandbox_analysis.submit_file(resource_hash=sys.argv[1],stream=open(sys.argv[2])).json()
+            print(result)
     else:
         daemon.start()
