@@ -38,6 +38,7 @@ class FortiSandboxAnalysisClient(object):
         return self._sid
 
     def submit_file(self, resource_hash=None, stream=None):
+        #log.info("submitfile hash = {0}".format(resource_hash))
         params = {}
         file_name = None
         if hasattr(stream, "name"):
@@ -55,9 +56,9 @@ class FortiSandboxAnalysisClient(object):
         log.debug("sub_file: response = %s" % str(response))
         return response
 
-    def get_report(self, resource_hash=None, batch=None):
+    def get_report(self, resource_hash=None, batch=None,hashtype="md5"):
         log.debug("get_report: resource_hash = %s" % resource_hash)
-        params = {"ctype": "MD5", "url": "/scan/result/file",
+        params = {"ctype": hashtype, "url": "/scan/result/file",
                   "checksum": resource_hash.lower()}
         response = api_fortisandbox.handle_request(
             host=self.host,
