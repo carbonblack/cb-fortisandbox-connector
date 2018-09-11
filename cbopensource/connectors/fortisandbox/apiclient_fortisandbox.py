@@ -53,7 +53,8 @@ class FortiSandboxAnalysisClient(object):
             sid=self.sid,
             params=params,
             request_type='file_upload')
-        log.debug("sub_file: response = %s" % str(response))
+        log.debug("sub_file: response = %s" % response)
+        log.debug("sub_file: response = %s" % response.json())
         return response
 
     def get_report(self, resource_hash=None, batch=None,hashtype="md5"):
