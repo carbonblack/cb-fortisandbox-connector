@@ -126,9 +126,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             log.info("Sucessfully submitted {0} to FortiSandbox for scanning".format(md5sum))
         else:
             raise AnalysisPermanentError(
-                message="FortiSandbox analysis failed -> %s" %
-                response_code, retry_in=120)
-
+                message="FortiSandbox analysis failed -> %s" % response.json() )
         try:
             response = self.fortisandbox_analysis.get_report(
                 resource_hash=md5sum)
