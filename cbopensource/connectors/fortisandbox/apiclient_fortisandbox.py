@@ -12,11 +12,14 @@ class FortiSandboxAnalysisClient(object):
     def __init__(self, host, session=None, username=None,
                  password=None, log_level=None):
         self.session = session
-        self.host = host
+        self.host = host + "/jsonrpc"
         self.username = username
         self.password = password
         self._sid = None
         log.setLevel(log_level if log_level else logging.INFO)
+
+    def invalidate_session(self):
+        self._sid = None
 
     @property
     def sid(self):

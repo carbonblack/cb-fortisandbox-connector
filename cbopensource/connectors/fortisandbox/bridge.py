@@ -20,6 +20,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         session = Session()
         tls_adapter = CbAPISessionAdapter(force_tls_1_2=True)
         session.mount("https://", tls_adapter)
+        self.host = host
         self.fortisandbox_analysis = FortiSandboxAnalysisClient(
             host=host,
             username=username,
@@ -61,12 +62,10 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             else:
                 ratings = data.get("rating", [])
                 vids = data.get("vid", ['N/A'])
+                jids = data.get("jid",['N/A'])
                 malware_names = data.get("malware_name", [])
                 report_string = "Fortisandbox Report for {0}:\n".format(md5)
-                if len(vids) > 0:
-                    link = "http://www.fortiguard.com/encyclopedia/virus/#id={0}".format(str(vids[0]))
-                else:
-                    link = "http://www.fortiguard.com/encyclopedia/virus/#id={0}".format(md5)
+                link = "{0}/job-detail/?jid={1}".format(self.host,str(jids[0]))
                 report_string += "Score: {0}\n".format(score)
                 report_string += "Malware Names: {0}\n".format(
                     ",".join(malware_names))
@@ -97,16 +96,12 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             data = result.get('data', {})
             score = int(data.get('score'))
             log.info("SCORE IS {0}".format(score))
-            #untrusted = int(data.get('untrusted', "0"))
-            if score != 0:
-                log.info("OK -> making result for {0}".format(md5sum))
-                return self.make_result(md5=md5sum, result=response.json())
-            else:
-                log.info("Score was RISK_UNKOWN")
-                return None
+            log.info("OK -> making result for {0}".format(md5sum))
+            return self.make_result(md5=md5sum, result=response.json())
         elif response_msg == 'DATA_NOT_EXIST':
             return None
-        else:
+        elif response_msg == 'INVALID_SESSION':
+            self.fortisandbox_analysis.invalidate_session()
             return None
 
     def analyze_binary(self, md5sum, binary_file_stream):
@@ -125,6 +120,8 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         if response_code == "OK":
             log.info("Sucessfully submitted {0} to FortiSandbox for scanning".format(md5sum))
         else:
+            if response_code == "INVALID_SESSION":
+                self.fortisandbox_analysis.invalidate_session()
             raise AnalysisPermanentError(
                 message="FortiSandbox analysis failed -> %s" % response.json() )
         try:
