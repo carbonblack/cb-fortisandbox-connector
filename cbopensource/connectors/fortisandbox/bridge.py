@@ -166,7 +166,7 @@ class FortiSandboxConnector(DetonationDaemon):
 
     @property
     def integration_name(self):
-        return 'Cb FortiSandbox Connector 1.0.0'
+        return 'Cb FortiSandbox Connector 1.0.1'
 
     @property
     def num_quick_scan_threads(self):
