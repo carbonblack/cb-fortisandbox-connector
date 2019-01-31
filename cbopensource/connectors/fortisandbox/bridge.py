@@ -47,7 +47,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             RISK_LOW = 4
             RISK_MEDIUM = 8
             RISK_HIGH = 16"""
-            RISK_MATRIX = {0:0,1:0,2:10,4:25,8:75,16:100}
+            RISK_MATRIX = {0:0,1:0,4:25,8:50,16:75,2:100}
             score = RISK_MATRIX[score] if score in RISK_MATRIX else score
             untrusted = int(data.get('untrusted', "0"))
             if score == 0:
