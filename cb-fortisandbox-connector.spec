@@ -4,7 +4,7 @@ a = Analysis(['scripts/cb-fortisandbox-connector'],
              hiddenimports=['unicodedata'],
              datas=[ (HOMEPATH + '/cbapi/response/models/*', 'cbapi/response/models/'),
                      (HOMEPATH + '/cbapi/protection/models/*', 'cbapi/protection/models/'),
-                     (HOMEPATH + '/cbapi/defense/models/*', 'cbapi/defense/models/') ],
+                     (HOMEPATH + '/cbapi/psc/defense/models/*', 'cbapi/psc/defense/models/') ],
              hookspath=None,
              runtime_hooks=None)
 pyz = PYZ(a.pure)
