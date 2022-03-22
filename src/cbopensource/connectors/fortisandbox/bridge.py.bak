@@ -41,13 +41,13 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             result = result.get('result', {})
             data = result.get('data', {})
             score = int(data.get('score'))
-            """RISK_UNKNOWN = 0
-            RISK_CLEAN = 1
-            RISK_MALICIOUS = 2
-            RISK_LOW = 4
-            RISK_MEDIUM = 8
-            RISK_HIGH = 16"""
-            RISK_MATRIX = {0:0,1:0,4:25,8:50,16:75,2:100}
+            """
+            RISK_CLEAN=0
+            RISK_MALICIOUS=1
+            RISK_HIGH=2
+            RISK_MEDIUM=3
+            RISK_LOW=4"""
+            RISK_MATRIX = {0:0,1:100,4:25,3:50,2:75}
             score = RISK_MATRIX[score] if score in RISK_MATRIX else score
             untrusted = int(data.get('untrusted', "0"))
             if score == 0:
