@@ -26,7 +26,7 @@ cp $2/connector.conf /etc/cb/integrations/fortisandbox/connector.conf
 cd $2/../test ; FLASK_APP=smoke_test_server.py python3.8 -m flask run --cert=adhoc &
 echo Starting service...
 service cb-fortisandbox-connector start
-sleep 10
+sleep 60
 tail -n 50 /var/log/cb/integrations/fortisandbox/fortisandbox.log
 grep -i "Submitting" /var/log/cb/integrations/fortisandbox/fortisandbox.log
 grep "Analyzed md5sum:" /var/log/cb/integrations/fortisandbox/fortisandbox.log >/dev/null
@@ -37,5 +37,6 @@ then
 else
   echo "Fortisandbox working correctly"
 fi
+curl http://localhost:4000/feed.json
 service cb-fortisandbox-connector stop
 yum -y remove python-cb-fortisandbox-connector

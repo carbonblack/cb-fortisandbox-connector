@@ -1,3 +1,4 @@
+from base64 import b64decode
 import hashlib
 import secrets
 import uuid
@@ -224,11 +225,17 @@ def get_mocked_server(app=None):
         if request_url == "/sys/login/user":
             return Response(response=json.dumps(mock_fortisandbox_server.get_session()), mimetype='application/json')
         if request_url == "/scan/result/file":
-            return Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_task_result(message = "NOTOK" if random.randint(0,1) == 1 else "OK")),
+            checksum = req_json["params"][0]["checksum"]
+            response = Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_task_result(message = "DATA_NOT_EXIST" if not mock_fortisandbox_server.binary_cache.get(checksum, None) else "OK")),
                         mimetype="application/json")
+            return response
         if request_url == "/alert/ondemand/submit-file":
-            return Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_submission()),
+            filename = req_json['params'][0]["filename"]
+            filename_hash = b64decode(filename).decode()
+            response = Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_submission()),
                         mimetype="application/json")
+            mock_fortisandbox_server.mark_binary(filename_hash)
+            return response
 
     @flask_server.route("/api/v1/storage/events/partition")
     def events_partition():
@@ -278,6 +285,10 @@ class MockFortisandboxServer(object):
 
     def __init__(self):
         self.search_cache = BinarySearchCache()
+        self.binary_cache = {}
+
+    def mark_binary(self, md5):
+        self.binary_cache[md5] = True
 
     def get_storage_events(self):
         return storage_events_partitions

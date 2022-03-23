@@ -41,7 +41,6 @@ class FortiSandboxAnalysisClient(object):
         return self._sid
 
     def submit_file(self, resource_hash=None, stream=None):
-        #log.info("submitfile hash = {0}".format(resource_hash))
         params = {}
         file_name = None
         if hasattr(stream, "name"):

@@ -1,3 +1,4 @@
+from time import sleep
 from cbint.utils.detonation import DetonationDaemon
 import traceback
 from cbint.utils.detonation.binary_analysis import (BinaryAnalysisProvider,
@@ -32,52 +33,63 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         try:
             result = self.fortisandbox_analysis.get_report(
                 resource_hash=md5).json() if not result else result
+        
+            result = result.get('result', {})
         except Exception as e:
             raise AnalysisTemporaryError(
                 message="API error: %s" %
                 str(e), retry_in=120)
-        else:
-            log.debug(f"Storing result {result}")
-            result = result.get('result', {})
-            data = result.get('data', {})
-            score = int(data.get('score'))
-            """
+        log.debug(f"Storing result {result}")
+        status =result.get('status', {"code":-1, "message": "Error"})
+        status_code = status.get("code", -1)
+        status_message = status.get("message", "NOTOK")
+        if status_code != 0 and status_message != "OK":
+            raise AnalysisTemporaryError(message=f"{md5} scan status is {status_message}", retry_in=2 * 60)
+        data = result.get('data', {})
+        score = int(data.get('score'))
+        """
             RISK_CLEAN=0
             RISK_MALICIOUS=1
             RISK_HIGH=2
             RISK_MEDIUM=3
             RISK_LOW=4"""
-            RISK_MATRIX = {0:0,1:100,4:25,3:50,2:75}
-            score = RISK_MATRIX[score] if score in RISK_MATRIX else score
-            untrusted = int(data.get('untrusted', "0"))
-            if score == 0:
-                if (self.fortisandbox_trust_untrusted and untrusted == 1) or untrusted == 0:
-                    return AnalysisResult(message="Benign", extended_message="",
-                                          link=str(data['rating']),
-                                          score=score)
-                else:
-                    raise AnalysisTemporaryError(
-                        message="Configured to not trust untrusted scans, retrying in 120 seconds", retry_in=120)
-
-            else:
-                ratings = data.get("rating", [])
-                vids = data.get("vid", ['N/A'])
-                jids = data.get("jid",['N/A'])
-                malware_names = data.get("malware_name", [])
-                report_string = "Fortisandbox Report for {0}:\n".format(md5)
-                link = "{0}/job-detail/?jid={1}".format(self.host,str(jids[0]))
-                report_string += "Score: {0}\n".format(score)
-                report_string += "Malware Names: {0}\n".format(
-                    ",".join(malware_names))
-                report_string += "Malware Ratings: {0}\n".format(
-                    ",".join(ratings))
-                report_string += "Virus Ids: {0}\n".format(
-                    ",".join([str(vid) for vid in vids]))
-                malware_result = "[{0}] FortiSandbox report for {1}".format(
-                    score, md5)
-                return AnalysisResult(message=malware_result, extended_message=report_string,
-                                      link=link,
+        RISK_MATRIX = {0:0,1:100,4:25,3:50,2:75}
+        score = RISK_MATRIX[score] if score in RISK_MATRIX else score
+        untrusted = int(data.get('untrusted', "0"))
+        if score == 0:
+            if (self.fortisandbox_trust_untrusted and untrusted == 1) or untrusted == 0:
+                return AnalysisResult(message="Benign", extended_message="",
+                                      link=str(data['rating']),
                                       score=score)
+            else:
+                raise AnalysisTemporaryError(
+                    message="Configured to not trust untrusted scans, retrying in 120 seconds", retry_in=120)
+
+        else:
+            ratings = data.get("rating", [])
+            vids = data.get("vid", ['N/A'])
+            jids = data.get("jid",['N/A'])
+            malware_names = data.get("malware_name", [])
+            report_string = "Fortisandbox Report for {0}:\n".format(md5)
+            link = "{0}/job-detail/?jid={1}".format(self.host,str(jids[0]))
+            report_string += "Score: {0}\n".format(score)
+            report_string += "Malware Names: {0}\n".format(
+                ",".join(malware_names))
+            report_string += "Malware Ratings: {0}\n".format(
+                ",".join(ratings))
+            report_string += "Virus Ids: {0}\n".format(
+                ",".join([str(vid) for vid in vids]))
+            malware_result = "[{0}] FortiSandbox report for {1}".format(
+                score, md5)
+            if malware_names:
+                malware_title = f'FortiSandbox: {",".join(malware_names)}'
+            else:
+                malware_title = f"FortiSandbox Report for {md5}"
+            return AnalysisResult(title=malware_title,
+                                  message=malware_result,
+                                  extended_message=report_string,
+                                  link=link,
+                                  score=score)
 
     def check_result_for(self, md5sum):
         log.debug("trying to check report for " + str(md5sum))
@@ -109,7 +121,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             response = self.fortisandbox_analysis.submit_file(
                 resource_hash=md5sum, stream=binary_file_stream)
         except BaseException as be:
-            log.error(f"EXCEPTION WHEN trying to submit binary: {str(md5sum)} {str(be)}")
+            log.error(f"Error trying to submit binary: {str(md5sum)} {str(be)}")
             log.error(traceback.format_exc())
             raise AnalysisTemporaryError(message=str(be), retry_in=15 * 60)
 
@@ -123,26 +135,19 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                 self.fortisandbox_analysis.invalidate_session()
             raise AnalysisPermanentError(
                 message="FortiSandbox analysis failed -> %s" % response.json() )
-        try:
-            response = self.fortisandbox_analysis.get_report(
-                resource_hash=md5sum)
-            response_json = response.json()
-            log.debug(f"Analysis Report for {md5sum} -> {response_json}")
-            result = response_json.get("result", {})
-            response_code = result.get("status", {}).get("message", None)
-            if response_code == "OK":
-                return self.make_result(md5=md5sum, result=response.json())
-            else:
-                raise AnalysisTemporaryError(
-                    message="FortiSandbox analysis failed -> %s" %
-                    response_code, retry_in=180)
-        except AnalysisTemporaryError as ate:
-            raise ate
-        except Exception as e:
-            log.error(f"Fortisandbox Analysis failed, permanently: {str(e)}")
-            log.error(traceback.format_exc())
-            raise AnalysisPermanentError(
-                message="FortiSandbox Anlaysis failed -> %s" % response_code)
+        
+        sleep(5)
+        retries = 10
+        while retries > 0:
+            retries -= 1
+            try:
+                return self.make_result(md5=md5sum)
+            except AnalysisTemporaryError as ate:
+                sleep(15)
+            except Exception as e:
+                raise AnalysisTemporaryError(message="Maximum retries (10) exceeded submitting to FortiSandbox", retry_in=120)
+
+        raise AnalysisTemporaryError(message="Maximum retries (10) exceeded submitting to FortiSandbox", retry_in=120)
 
 
 class FortiSandboxConnector(DetonationDaemon):
