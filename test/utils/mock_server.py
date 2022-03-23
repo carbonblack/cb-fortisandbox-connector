@@ -224,7 +224,7 @@ def get_mocked_server(app=None):
         if request_url == "/sys/login/user":
             return Response(response=json.dumps(mock_fortisandbox_server.get_session()), mimetype='application/json')
         if request_url == "/scan/result/file":
-            return Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_task_result()),
+            return Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_task_result(message = "NOTOK" if random.randint(0,1) == 1 else "OK")),
                         mimetype="application/json")
         if request_url == "/alert/ondemand/submit-file":
             return Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_submission()),
@@ -328,8 +328,8 @@ class MockFortisandboxServer(object):
     def get_binary_search(self, query_string, rows, start):
         return self.search_cache.get_result(query=query_string, rows=rows, start=start)
 
-    def get_fortisandbox_analysis_task_result(self):
-        return {'ver': '2.1', 'id': 10, 'result': {'url': '/scan/result/file', 'status': {'message': 'OK', 'code': 0}, 'data': {'rating': ['Malicious'], 'jid': ['5976427238674567477'], 'detection_os': [], 'vid': [7406387], 'untrusted': 0, 'start_ts': 1647873887, 'infected_os': [], 'score': random.randint(0,4), 'behavior_info': 0, 'finish_ts': 1647873889, 'false_positive_negative': [0], 'now': 1647874030, 'rating_source': ['AV Scanner'], 'malware_name': ['Riskware/WildFireTestFile']}}}
+    def get_fortisandbox_analysis_task_result(self, message="OK"):
+        return {'ver': '2.1', 'id': 10, 'result': {'url': '/scan/result/file', 'status': {'message': message, 'code': 0}, 'data': {'rating': ['Malicious'], 'jid': ['5976427238674567477'], 'detection_os': [], 'vid': [7406387], 'untrusted': 0, 'start_ts': 1647873887, 'infected_os': [], 'score': random.randint(0,4), 'behavior_info': 0, 'finish_ts': 1647873889, 'false_positive_negative': [0], 'now': 1647874030, 'rating_source': ['AV Scanner'], 'malware_name': ['Riskware/WildFireTestFile']}}}
 
 
 if __name__ == '__main__':

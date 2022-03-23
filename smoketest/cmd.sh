@@ -27,6 +27,8 @@ cd $2/../test ; FLASK_APP=smoke_test_server.py python3.8 -m flask run --cert=adh
 echo Starting service...
 service cb-fortisandbox-connector start
 sleep 10
+tail -n 50 /var/log/cb/integrations/fortisandbox/fortisandbox.log
+grep -i "Submitting" /var/log/cb/integrations/fortisandbox/fortisandbox.log
 grep "Analyzed md5sum:" /var/log/cb/integrations/fortisandbox/fortisandbox.log >/dev/null
 if [ $? -eq 1 ]
 then
