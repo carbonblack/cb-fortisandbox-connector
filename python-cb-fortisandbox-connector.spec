@@ -38,6 +38,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %posttrans
 mkdir -p /usr/share/cb/integrations/fortisandbox/db
+mkdir -p /var/log/cb/integrations/fortisandbox/
 chkconfig --add cb-fortisandbox-connector
 chkconfig --level 345 cb-fortisandbox-connector on
 

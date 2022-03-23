@@ -184,7 +184,7 @@ data_files.append('scripts/cb-fortisandbox-connector')
 scripts = {
     'cb-fortisandbox-connector': {
         'spec': 'cb-fortisandbox-connector.spec',
-        'dest': '/usr/share/cb/integrations/cb-fortisandbox-connector/bin/'
+        'dest': '/usr/share/cb/integrations/fortisandbox/bin/'
     }
 }
 

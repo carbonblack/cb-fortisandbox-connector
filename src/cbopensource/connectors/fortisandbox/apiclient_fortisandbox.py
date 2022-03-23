@@ -47,9 +47,9 @@ class FortiSandboxAnalysisClient(object):
         if hasattr(stream, "name"):
             file_name = os.path.basename(stream.name)
         params['filename'] = b64encode(
-            file_name) if file_name else b64encode(resource_hash)
+            file_name.encode()).decode() if file_name else b64encode(resource_hash.encode()).decode()
         stream.seek(0)
-        params['file'] = b64encode(stream.read())
+        params['file'] = b64encode(stream.read()).decode()
         response = api_fortisandbox.handle_request(
             host=self.host,
             session=self.session,

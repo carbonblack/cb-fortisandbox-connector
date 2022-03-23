@@ -166,7 +166,7 @@ TEST_INPUTS = {
         "params": [
             {
                 "file": "dGhpcyBpcyBhIHRlc3QhCg==",
-                "filename": b64encode("test.txt"),
+                "filename": b64encode("test.txt".encode()),
                 "url": "/alert/ondemand/submit-file",
                 "timeout": "60",
                 "depth": "1",
@@ -282,13 +282,10 @@ def _load_file_for_upload(path_to_file, test_input, filename=''):
 def handle_request(host, sid=None, session=None,
                    params=None, request_type=None, filepath=None):
     test_input = TEST_INPUTS.get(request_type, None)
-    #print test_input
     if sid:
         test_input['session'] = sid
     for key, value in list(params.items()):
-        #print ("k, v = %s , %s " % (key, value))
         test_input['params'][0][key] = value
-    #print test_input['params'][0]
     response = _handle_post_with_session(session, host, test_input)
     return response
 

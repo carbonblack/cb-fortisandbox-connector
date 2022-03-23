@@ -29,7 +29,6 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             log_level=log_level)
 
     def make_result(self, result=None, md5=None):
-        log.info("making result for md5 {0}".format(md5 if md5 else "None"))
         try:
             result = self.fortisandbox_analysis.get_report(
                 resource_hash=md5).json() if not result else result
@@ -38,6 +37,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
                 message="API error: %s" %
                 str(e), retry_in=120)
         else:
+            log.debug(f"Storing result {result}")
             result = result.get('result', {})
             data = result.get('data', {})
             score = int(data.get('score'))
@@ -89,16 +89,15 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             return None
 
         result = response.json().get("result", {})
-        status = result.get("status")
-        response_msg = status.get("message", "None")
-        code = status.get('code', -1)
+        status = result.get("status", {"message":"None"})
+        response_msg = status.get("message", "No message provided by Fortisandbox.")
         if response_msg == "OK":
             data = result.get('data', {})
             score = int(data.get('score'))
-            log.info("SCORE IS {0}".format(score))
-            log.info("OK -> making result for {0}".format(md5sum))
+            log.info(f"{md5sum} scored {score}")
             return self.make_result(md5=md5sum, result=response.json())
         elif response_msg == 'DATA_NOT_EXIST':
+            log.info(f"{md5sum} did not exist in Fortisandbox")
             return None
         elif response_msg == 'INVALID_SESSION':
             self.fortisandbox_analysis.invalidate_session()
@@ -110,8 +109,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
             response = self.fortisandbox_analysis.submit_file(
                 resource_hash=md5sum, stream=binary_file_stream)
         except BaseException as be:
-            log.error("EXCEPTION WHEN trying to submit binary: " + str(md5sum))
-            log.error(str(be))
+            log.error(f"EXCEPTION WHEN trying to submit binary: {str(md5sum)} {str(be)}")
             log.error(traceback.format_exc())
             raise AnalysisTemporaryError(message=str(be), retry_in=15 * 60)
 
@@ -120,6 +118,7 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         if response_code == "OK":
             log.info("Sucessfully submitted {0} to FortiSandbox for scanning".format(md5sum))
         else:
+            log.info(f"Submission failed with {response.json()}")
             if response_code == "INVALID_SESSION":
                 self.fortisandbox_analysis.invalidate_session()
             raise AnalysisPermanentError(
@@ -127,25 +126,20 @@ class FortiSandboxProvider(BinaryAnalysisProvider):
         try:
             response = self.fortisandbox_analysis.get_report(
                 resource_hash=md5sum)
-            log.debug("Fortinet report: " + str(response.json()))
-            result = response.json().get("result", {})
+            response_json = response.json()
+            log.debug(f"Analysis Report for {md5sum} -> {response_json}")
+            result = response_json.get("result", {})
             response_code = result.get("status", {}).get("message", None)
             if response_code == "OK":
-                log.info(
-                    "Got analysis report from Fortisandbox for %s" %
-                    md5sum)
                 return self.make_result(md5=md5sum, result=response.json())
             else:
-                log.info(
-                    "No analysis report from Fortisandbox for %s, try again in 180 seconds" %
-                    md5sum)
                 raise AnalysisTemporaryError(
                     message="FortiSandbox analysis failed -> %s" %
                     response_code, retry_in=180)
         except AnalysisTemporaryError as ate:
             raise ate
-        except:
-            log.error("Fortisandbox Analysis failed , permanent!")
+        except Exception as e:
+            log.error(f"Fortisandbox Analysis failed, permanently: {str(e)}")
             log.error(traceback.format_exc())
             raise AnalysisPermanentError(
                 message="FortiSandbox Anlaysis failed -> %s" % response_code)
@@ -166,7 +160,7 @@ class FortiSandboxConnector(DetonationDaemon):
 
     @property
     def integration_name(self):
-        return 'Cb FortiSandbox Connector 1.0.1'
+        return 'Cb FortiSandbox Connector 1.0.7'
 
     @property
     def num_quick_scan_threads(self):
@@ -205,7 +199,7 @@ class FortiSandboxConnector(DetonationDaemon):
         self.fortisandbox_trust_untrusted = True if trust_untrusted == 1 else False
         self.log_level = logging.DEBUG if int(
             self.get_config_string(
-                "debug", 0)) is 1 else logging.INFO
+                "debug", 0)) == 1 else logging.INFO
         log.setLevel(self.log_level)
 
         return True

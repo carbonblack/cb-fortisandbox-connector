@@ -2,6 +2,7 @@ import hashlib
 import secrets
 import uuid
 from collections import namedtuple
+import random
 from datetime import datetime, timedelta
 
 try:
@@ -10,7 +11,7 @@ except ImportError:
     import json
 
 from flask import Flask, request, make_response, Response
-from io import StringIO
+from io import BytesIO, StringIO
 import zipfile
 
 storage_events_partitions = {"cbevents_2017_03_18_1807": {
@@ -216,19 +217,22 @@ def get_mocked_server(app=None):
     def info():
         return Response(response=json.dumps(mock_fortisandbox_server.get_api_info()), mimetype='application/json')
 
+    @flask_server.route('/jsonrpc', methods=['GET', 'POST'])
+    def jsonrpc():
+        req_json = request.json or json.loads(request.data)
+        request_url = req_json["params"][0]["url"]
+        if request_url == "/sys/login/user":
+            return Response(response=json.dumps(mock_fortisandbox_server.get_session()), mimetype='application/json')
+        if request_url == "/scan/result/file":
+            return Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_task_result()),
+                        mimetype="application/json")
+        if request_url == "/alert/ondemand/submit-file":
+            return Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_submission()),
+                        mimetype="application/json")
+
     @flask_server.route("/api/v1/storage/events/partition")
     def events_partition():
         return Response(response=json.dumps(mock_fortisandbox_server.get_storage_events()), mimetype="application/json")
-
-    @flask_server.route("/alert/ondemand/submit-file", methods=["POST", "GET"])
-    def analysis_submission():
-        return Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_submission()),
-                        mimetype="application/json")
-
-    @flask_server.route("/scan/result/file", methods=["POST", "GET"])
-    def analysis_result():
-        return Response(response=json.dumps(mock_fortisandbox_server.get_fortisandbox_analysis_task_result()),
-                        mimetype="application/json")
 
     return flask_server
 
@@ -284,11 +288,14 @@ class MockFortisandboxServer(object):
     def get_api_info(self):
         return {"version": "7.5.0"}
 
+    def get_session(self):
+        return {"session": "lolbert"}     
+
     def handle_api_info(self, request, context):
         return self.get_api_info()
 
     def get_binary(self):
-        zipfile_contents = StringIO()
+        zipfile_contents = BytesIO()
         zf = zipfile.ZipFile(zipfile_contents, 'w', zipfile.ZIP_DEFLATED, False)
         zf.writestr('filedata', "HELLOWORLDDEADBEEF")
         zf.writestr('metadata', "NOTHING")
@@ -322,7 +329,7 @@ class MockFortisandboxServer(object):
         return self.search_cache.get_result(query=query_string, rows=rows, start=start)
 
     def get_fortisandbox_analysis_task_result(self):
-        return {'ver': '2.1', 'id': 10, 'result': {'url': '/scan/result/file', 'status': {'message': 'OK', 'code': 0}, 'data': {'rating': ['Malicious'], 'jid': ['5976427238674567477'], 'detection_os': [], 'vid': [7406387], 'untrusted': 0, 'start_ts': 1647873887, 'infected_os': [], 'score': 1, 'behavior_info': 0, 'finish_ts': 1647873889, 'false_positive_negative': [0], 'now': 1647874030, 'rating_source': ['AV Scanner'], 'malware_name': ['Riskware/WildFireTestFile']}}}
+        return {'ver': '2.1', 'id': 10, 'result': {'url': '/scan/result/file', 'status': {'message': 'OK', 'code': 0}, 'data': {'rating': ['Malicious'], 'jid': ['5976427238674567477'], 'detection_os': [], 'vid': [7406387], 'untrusted': 0, 'start_ts': 1647873887, 'infected_os': [], 'score': random.randint(0,4), 'behavior_info': 0, 'finish_ts': 1647873889, 'false_positive_negative': [0], 'now': 1647874030, 'rating_source': ['AV Scanner'], 'malware_name': ['Riskware/WildFireTestFile']}}}
 
 
 if __name__ == '__main__':

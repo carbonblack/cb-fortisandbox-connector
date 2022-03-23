@@ -10,7 +10,7 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-exec="/usr/share/cb/integrations/cb-fortisandbox-connector/bin/cb-fortisandbox-connector"
+exec="/usr/share/cb/integrations/fortisandbox/bin/cb-fortisandbox-connector"
 prog="cb-fortisandbox-connector"
 pidfile="/var/run/cb/integrations/fortisandboxconnector.pid"
 

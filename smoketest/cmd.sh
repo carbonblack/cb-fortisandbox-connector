@@ -25,16 +25,15 @@ rpm -ivh "$RPM_FILE"
 cp $2/connector.conf /etc/cb/integrations/fortisandbox/connector.conf
 cd $2/../test ; FLASK_APP=smoke_test_server.py python3.8 -m flask run --cert=adhoc &
 echo Starting service...
-sleep 99999
 service cb-fortisandbox-connector start
-sleep 5
-filepath='/usr/share/cb/integrations/cb-fortisandbox-connector/cache/feed.cache'
-if [ -n "$(find "$filepath" -prune -size +10000c)" ]; then
-    echo "fortisandbox connector working ok!"
+sleep 10
+grep "Analyzed md5sum:" /var/log/cb/integrations/fortisandbox/fortisandbox.log >/dev/null
+if [ $? -eq 1 ]
+then
+  echo "Fortisandbox not working correctly"
+  exit 1
 else
-    echo "fortisandbox connector not working correctly - exiting"
-    exit 1
+  echo "Fortisandbox working correctly"
 fi
-
 service cb-fortisandbox-connector stop
 yum -y remove python-cb-fortisandbox-connector
